@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon/icon.png" width="220" alt="Obsidian Hot Corner Preview" />
+</p>
+
 # Obsidian Hot Corner Preview
 
 A lightweight macOS menu bar app that brings your Obsidian notes to your fingertips-just like “Quick Notes” with active screen corners. Select any `.md` file in the settings, then hover your cursor over one of the screen’s corners. A floating preview window renders your Markdown document on top of all other windows, and a single click opens the note in Obsidian.
