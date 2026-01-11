@@ -47,11 +47,7 @@ jobs:
           fi
 
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" != refs/tags/* ]]; then
-            BEFORE_SHA="$(python3 - <<'PY'
-import json, os
-print(json.load(open(os.environ["GITHUB_EVENT_PATH"]))["before"])
-PY
-)"
+            BEFORE_SHA="$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_EVENT_PATH"]))["before"])')"
             if [[ -n "${BEFORE_SHA}" && "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]; then
               if git show "${BEFORE_SHA}:ObsidianHotCornerMD.xcodeproj/project.pbxproj" >/dev/null 2>&1; then
                 PREV_VERSION="$(git show "${BEFORE_SHA}:ObsidianHotCornerMD.xcodeproj/project.pbxproj" | awk -F' = ' '/MARKETING_VERSION/{print $2; exit}' | tr -d ' ;')"
