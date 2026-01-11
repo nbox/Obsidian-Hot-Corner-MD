@@ -26,11 +26,27 @@ A lightweight macOS menu bar app that brings your Obsidian notes to your fingert
 
 </details>
 
-## Installation
+## 🍺 Homebrew (macOS)
 
-DMG install checklist:
+Install:
 
-1. Download the latest `.dmg` from the [Releases](https://github.com/nbox/ObsidianHotCornerMD/releases) page.
+```bash
+brew install --cask nbox/tap/obsidian-hot-corner-md
+```
+
+Uninstall:
+
+```bash
+brew uninstall --cask --zap obsidian-hot-corner-md
+```
+
+## Download
+
+Releases: https://github.com/nbox/ObsidianHotCornerMD/releases
+
+Install from DMG:
+
+1. Download the latest `.dmg` from the Releases page.
 2. Open the `.dmg` to mount it. You will see `ObsidianHotCornerMD.app` and an `Applications` shortcut.
 3. Drag `ObsidianHotCornerMD.app` onto the `Applications` shortcut.
 4. Eject the mounted DMG.
@@ -38,12 +54,22 @@ DMG install checklist:
 
 Note: On first launch, macOS may request **Input Monitoring** permission to observe mouse movement for hot corners. Grant it at: System Settings → Privacy & Security → Input Monitoring.
 
-**If macOS blocks the app as "unverified":**
+## macOS Gatekeeper
 
-- Open **System Settings → Privacy & Security**.
-- Scroll to the **Security** section. You should see a message that `ObsidianHotCornerMD.app` was blocked.
-- Click **Open Anyway**, then confirm in the dialog by choosing **Open Anyway** again.
-- Relaunch the app from Applications.
+⚠️ macOS may block unsigned builds downloaded from GitHub. If you see a warning that the app can't be opened because it isn't signed and macOS offers to move it to the Trash, use one of the options below:
+
+Option 1: Allow in System Settings -> Privacy & Security
+
+- Try to open the app normally (double-click).
+- Open System Settings -> Privacy & Security.
+- Under the warning about Obsidian Hot Corner Preview, click Open Anyway.
+- Confirm by clicking Open.
+
+Option 2: Remove the quarantine attribute
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/ObsidianHotCornerMD.app"
+```
 
 ## License
 
