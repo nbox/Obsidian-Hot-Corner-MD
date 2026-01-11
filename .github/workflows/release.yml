@@ -12,14 +12,86 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
-    runs-on: macos-latest
-    env:
-      IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/') }}
-      SHORT_SHA: ${{ github.sha }}
+  version-check:
+    name: Version check
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+      should_build: ${{ steps.check.outputs.should_build }}
+      should_release: ${{ steps.check.outputs.should_release }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version
+        id: check
+        run: |
+          set -euo pipefail
+          SHOULD_BUILD="true"
+          SHOULD_RELEASE="true"
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(awk -F' = ' '/MARKETING_VERSION/{print $2; exit}' ObsidianHotCornerMD.xcodeproj/project.pbxproj | tr -d ' ;')"
+            TAG_NAME="v${VERSION}"
+          fi
+
+          if [[ -z "${VERSION}" ]]; then
+            echo "MARKETING_VERSION not found" >&2
+            exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" != refs/tags/* ]]; then
+            BEFORE_SHA="$(python3 - <<'PY'
+import json, os
+print(json.load(open(os.environ["GITHUB_EVENT_PATH"]))["before"])
+PY
+)"
+            if [[ -n "${BEFORE_SHA}" && "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]]; then
+              if git show "${BEFORE_SHA}:ObsidianHotCornerMD.xcodeproj/project.pbxproj" >/dev/null 2>&1; then
+                PREV_VERSION="$(git show "${BEFORE_SHA}:ObsidianHotCornerMD.xcodeproj/project.pbxproj" | awk -F' = ' '/MARKETING_VERSION/{print $2; exit}' | tr -d ' ;')"
+                if [[ "${PREV_VERSION}" == "${VERSION}" ]]; then
+                  SHOULD_BUILD="false"
+                  SHOULD_RELEASE="false"
+                fi
+              fi
+            fi
+          fi
+
+          if [[ "${GITHUB_REF}" != refs/tags/* ]]; then
+            if git show-ref --tags --quiet "refs/tags/${TAG_NAME}"; then
+              SHOULD_BUILD="false"
+              SHOULD_RELEASE="false"
+            fi
+          fi
+
+          if [[ "${SHOULD_BUILD}" != "true" ]]; then
+            SHOULD_RELEASE="false"
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG_NAME}"
+            echo "should_build=${SHOULD_BUILD}"
+            echo "should_release=${SHOULD_RELEASE}"
+          } >> "$GITHUB_OUTPUT"
+
+  build-release:
+    name: Build + Release
+    needs: version-check
+    if: needs.version-check.outputs.should_build == 'true'
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version-check.outputs.version }}
+      TAG_NAME: ${{ needs.version-check.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Select Xcode
         run: |
@@ -48,13 +120,8 @@ jobs:
         run: |
           set -euo pipefail
           APP_PATH="build/ObsidianHotCornerMD.xcarchive/Products/Applications/ObsidianHotCornerMD.app"
-          if [[ "${IS_TAG_BUILD}" == "true" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-            TAG_NAME="${GITHUB_REF_NAME}"
-          else
-            VERSION="main-${SHORT_SHA:0:7}"
-            TAG_NAME="auto-${SHORT_SHA:0:7}"
-          fi
+          VERSION="${VERSION}"
+          TAG_NAME="${TAG_NAME}"
           DMG_NAME="ObsidianHotCornerMD-${VERSION}.dmg"
           STAGING="build/dmg-root"
           rm -rf "$STAGING"
@@ -69,14 +136,47 @@ jobs:
             echo "release_name=ObsidianHotCornerMD ${VERSION}"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Compute SHA256 (DMG)
+        id: dmg_sha
+        run: |
+          set -euo pipefail
+          DMG_PATH="${{ steps.dmg.outputs.dmg }}"
+          echo "sha256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
       - name: Upload Release DMG
-        uses: softprops/action-gh-release@v1
+        if: needs.version-check.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           files: ${{ steps.dmg.outputs.dmg }}
           tag_name: ${{ steps.dmg.outputs.tag_name }}
           name: ${{ steps.dmg.outputs.release_name }}
           draft: false
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          prerelease: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout Homebrew tap
+        if: needs.version-check.outputs.should_release == 'true'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: nbox/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Update cask in tap repo
+        if: needs.version-check.outputs.should_release == 'true'
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.version-check.outputs.version }}"
+          SHA="${{ steps.dmg_sha.outputs.sha256 }}"
+          CASK="tap/Casks/obsidian-hot-corner-md.rb"
+
+          perl -i -pe 's/^  version ".*"$/  version "'"$VERSION"'"/' "$CASK"
+          perl -i -pe 's/^  sha256 ".*"$/  sha256 "'"$SHA"'"/' "$CASK"
+
+          git -C tap config user.name "github-actions[bot]"
+          git -C tap config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C tap add Casks/obsidian-hot-corner-md.rb
+          git -C tap commit -m "obsidian-hot-corner-md $VERSION" || exit 0
+          git -C tap push

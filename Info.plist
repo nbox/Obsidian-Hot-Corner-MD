@@ -9,7 +9,7 @@
     <key>CFBundleVersion</key>
     <string>1</string>                                             <!-- Build number -->
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>                                           <!-- App version -->
+    <string>1.0.0</string>                                         <!-- App version -->
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>                                 <!-- Main application class (default) -->
     <!-- Input monitoring permissions -->

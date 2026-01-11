@@ -15,6 +15,7 @@ class SettingsModel: ObservableObject {
     @Published var launchAtLogin: Bool = false {
         didSet {
             UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin")
+            guard !isInitializing, launchAtLogin != oldValue else { return }
             toggleLaunchAtLogin(launchAtLogin)
         }
     }
@@ -33,6 +34,7 @@ class SettingsModel: ObservableObject {
     
     
     private var cancellables = Set<AnyCancellable>()
+    private var isInitializing = true
     
     init() {
         loadSettings()
@@ -43,7 +45,9 @@ class SettingsModel: ObservableObject {
             .sink { [weak self] _ in
                 self?.saveSettings()
             }
-        .store(in: &cancellables)}
+        .store(in: &cancellables)
+        isInitializing = false
+    }
     
     private func toggleLaunchAtLogin(_ enabled: Bool) {
         do {
