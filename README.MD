@@ -52,20 +52,18 @@ Install from DMG:
 4. Eject the mounted DMG.
 5. Launch the app from Applications — the menu bar icon will appear. Open Settings, choose your Markdown file, enable desired corners, adjust width/lines, assign a hotkey, and (optionally) enable launch at login.
 
-Note: On first launch, macOS may request **Input Monitoring** permission to observe mouse movement for hot corners. Grant it at: System Settings → Privacy & Security → Input Monitoring.
-
 ## macOS Gatekeeper
 
 ⚠️ macOS may block unsigned builds downloaded from GitHub. If you see a warning that the app can't be opened because it isn't signed and macOS offers to move it to the Trash, use one of the options below:
 
 Option 1: Allow in System Settings -> Privacy & Security
 
-- Try to open the app normally (double-click).
+- Try to open the app.
 - Open System Settings -> Privacy & Security.
 - Under the warning about Obsidian Hot Corner Preview, click Open Anyway.
 - Confirm by clicking Open.
 
-Option 2: Remove the quarantine attribute
+Option 2: Remove the quarantine attribute, run:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/ObsidianHotCornerMD.app"
